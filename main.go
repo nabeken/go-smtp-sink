@@ -10,6 +10,7 @@ import (
 	"net/textproto"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -153,6 +154,23 @@ func (s *server) serveConn(conn net.Conn) {
 	writeReplyAndFlush(bw, 220, fmt.Sprintf("%s ESMTP", s.hostname))
 
 	sess := &session{}
+
+	filename := fmt.Sprintf("%d-%s.dat", time.Now().UTC().Unix(), conn.RemoteAddr().(*net.TCPAddr).IP.String())
+	f, err := os.Create(filename)
+	if err != nil {
+		slog.Error("Failed to create a log file", "error", err.Error())
+		return
+	}
+	defer f.Close()
+
+	fmt.Fprint(f, "=== SESSION BEGIN ===\n")
+
+	slog.Info("Writing Connection log", "file", f.Name())
+
+	conn = &logConn{
+		inner: conn,
+		w:     f,
+	}
 
 	var quit bool
 	for !quit {
@@ -333,6 +351,7 @@ func (s *server) serveConn(conn net.Conn) {
 	defer conn.Close()
 
 	writeReplyAndFlush(bw, 221, "Service closing transmission channel")
+	fmt.Fprint(f, "=== SESSION END ===\n")
 }
 
 func respInvalidSyntax(bw *bufio.Writer) {
