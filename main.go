@@ -55,6 +55,7 @@ func realmain() error {
 	var serverName string
 	var certPath string
 	var keyPath string
+	var useTLS12 bool
 
 	rootCmd := &cobra.Command{
 		Use:   "go-smts-sink",
@@ -69,7 +70,7 @@ func realmain() error {
 
 			slog.Info(fmt.Sprintf("Listening to %s...", addr))
 
-			srv, err := NewServer(serverName, certPath, keyPath)
+			srv, err := NewServer(serverName, certPath, keyPath, useTLS12)
 			if err != nil {
 				slog.Error("Failed to create a server", "error", err.Error())
 				return
@@ -116,6 +117,12 @@ func realmain() error {
 		"",
 		"specify a path to load private SSL certificate",
 	)
+	rootCmd.Flags().BoolVar(
+		&useTLS12,
+		"use-tls12",
+		false,
+		"specify to use TLS 1.2 only",
+	)
 	return rootCmd.Execute()
 }
 
@@ -124,12 +131,12 @@ type server struct {
 	tlsConfig *tls.Config
 }
 
-func NewServer(hostname, certPath, keyPath string) (*server, error) {
-	if certPath == "" && keyPath == "" {
+func NewServer(hostname, certPath, keyPath string, useTLS12 bool) (*server, error) {
+	srv := server{hostname: hostname}
+
+	if certPath == "" || keyPath == "" {
 		slog.Info("Skipped loading cert and key")
-		return &server{
-			hostname: hostname,
-		}, nil
+		return &srv, nil
 	}
 
 	tlsCert, err := tls.LoadX509KeyPair(certPath, keyPath)
@@ -138,11 +145,18 @@ func NewServer(hostname, certPath, keyPath string) (*server, error) {
 		return nil, err
 	}
 
+	tlsConfig := tls.Config{
+		Certificates: []tls.Certificate{tlsCert},
+	}
+
+	if useTLS12 {
+		tlsConfig.MinVersion = tls.VersionTLS12
+		tlsConfig.MaxVersion = tls.VersionTLS12
+	}
+
 	return &server{
-		hostname: hostname,
-		tlsConfig: &tls.Config{
-			Certificates: []tls.Certificate{tlsCert},
-		},
+		hostname:  hostname,
+		tlsConfig: &tlsConfig,
 	}, nil
 }
 
