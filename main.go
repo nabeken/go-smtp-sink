@@ -292,7 +292,7 @@ func (s *server) serveConn(conn net.Conn) {
 			writeReplyAndFlush(bw, 502, "Command not implemented")
 
 		case "STARTTLS":
-			writeReplyAndFlush(bw, 250, "Ready to start TLS")
+			writeReplyAndFlush(bw, 220, "Ready to start TLS")
 
 			tlsConn := tls.Server(conn, s.tlsConfig)
 			err := tlsConn.Handshake()
@@ -311,6 +311,11 @@ func (s *server) serveConn(conn net.Conn) {
 				"error", err,
 				"connection_state", connStateLogValue,
 			)
+
+			if err != nil {
+				writeReplyAndFlush(bw, 454, "TLS not available due to temporary reason")
+				continue
+			}
 
 			sess.inTLS = true
 
