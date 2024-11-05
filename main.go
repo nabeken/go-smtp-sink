@@ -91,8 +91,6 @@ func realmain() error {
 						return
 					}
 
-					defer conn.Close()
-
 					srv.serveConn(conn)
 				}()
 			}
@@ -326,6 +324,8 @@ func (s *server) serveConn(conn net.Conn) {
 			writeReplyAndFlush(bw, 500, "Syntax error")
 		}
 	}
+
+	defer conn.Close()
 
 	writeReplyAndFlush(bw, 221, "Service closing transmission channel")
 }
