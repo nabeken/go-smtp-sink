@@ -294,6 +294,11 @@ func (s *server) serveConn(conn net.Conn) {
 				"connection_state", connStateLogValue,
 			)
 
+			// reinstall bw and br
+			conn = tlsConn
+			br = bufio.NewReader(conn)
+			bw = bufio.NewWriter(conn)
+
 		default:
 			slog.Info("Unrecognized command received", "command", verb, "args", args)
 			writeReplyAndFlush(bw, 500, "Syntax error")
