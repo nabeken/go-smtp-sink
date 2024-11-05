@@ -36,6 +36,13 @@ type session struct {
 	client string
 	state  sessionState
 	tx     *transaction
+
+	inTLS bool
+}
+
+func (s *session) init() {
+	s.client = ""
+	s.tx = nil
 }
 
 type transaction struct {
@@ -175,7 +182,7 @@ func (s *server) serveConn(conn net.Conn) {
 		switch verb {
 		case "EHLO", "HELO":
 			// reset to an initial state
-			sess = &session{}
+			sess.init()
 
 			if args == "" {
 				args = "unknown"
@@ -183,10 +190,22 @@ func (s *server) serveConn(conn net.Conn) {
 
 			sess.client = args
 			sess.state = beforeMAIL
+
+			reply := []string{
+				fmt.Sprintf("%s greets %s", s.hostname, sess.client),
+			}
+
+			if s.tlsConfig != nil {
+				if !sess.inTLS {
+					// advertise STARTTLS extension
+					reply = append(reply, "STARTTLS")
+				}
+			}
+
 			writeReplyAndFlush(
 				bw,
 				250,
-				fmt.Sprintf("%s greets %s", s.hostname, sess.client),
+				reply...,
 			)
 
 		case "MAIL":
@@ -289,10 +308,13 @@ func (s *server) serveConn(conn net.Conn) {
 				slog.String("negotiated_protocol", connState.NegotiatedProtocol),
 				slog.String("server_name", connState.ServerName),
 			)
-			slog.Info("TLS handshake",
+
+			slog.Info("TLS handshake completed",
 				"error", err,
 				"connection_state", connStateLogValue,
 			)
+
+			sess.inTLS = true
 
 			// reinstall bw and br
 			conn = tlsConn
