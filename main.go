@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log/slog"
@@ -45,6 +46,8 @@ type transaction struct {
 
 func realmain() error {
 	var serverName string
+	var certPath string
+	var keyPath string
 
 	rootCmd := &cobra.Command{
 		Use:   "go-smts-sink",
@@ -59,7 +62,11 @@ func realmain() error {
 
 			slog.Info(fmt.Sprintf("Listening to %s...", addr))
 
-			srv := &server{hostname: serverName}
+			srv, err := NewServer(serverName, certPath, keyPath)
+			if err != nil {
+				slog.Error("Failed to create a server", "error", err.Error())
+				return
+			}
 
 			l, err := net.Listen("tcp", addr)
 			if err != nil {
@@ -92,11 +99,46 @@ func realmain() error {
 		"specify a server name",
 	)
 
+	rootCmd.Flags().StringVar(
+		&certPath,
+		"cert",
+		"",
+		"specify a path to load public SSL certificate",
+	)
+	rootCmd.Flags().StringVar(
+		&keyPath,
+		"key",
+		"",
+		"specify a path to load private SSL certificate",
+	)
 	return rootCmd.Execute()
 }
 
 type server struct {
-	hostname string
+	hostname  string
+	tlsConfig *tls.Config
+}
+
+func NewServer(hostname, certPath, keyPath string) (*server, error) {
+	if certPath == "" && keyPath == "" {
+		slog.Info("Skipped loading cert and key")
+		return &server{
+			hostname: hostname,
+		}, nil
+	}
+
+	tlsCert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		slog.Error("Failed to load the certificates", "error", err.Error())
+		return nil, err
+	}
+
+	return &server{
+		hostname: hostname,
+		tlsConfig: &tls.Config{
+			Certificates: []tls.Certificate{tlsCert},
+		},
+	}, nil
 }
 
 func (s *server) serveConn(conn net.Conn) {
@@ -231,6 +273,26 @@ func (s *server) serveConn(conn net.Conn) {
 
 		case "VRFY":
 			writeReplyAndFlush(bw, 502, "Command not implemented")
+
+		case "STARTTLS":
+			writeReplyAndFlush(bw, 250, "Ready to start TLS")
+
+			tlsConn := tls.Server(conn, s.tlsConfig)
+			err := tlsConn.Handshake()
+
+			connState := tlsConn.ConnectionState()
+			connStateLogValue := slog.GroupValue(
+				slog.String("version", tls.VersionName(connState.Version)),
+				slog.Bool("handshake_complete", connState.HandshakeComplete),
+				slog.Bool("did_resume", connState.DidResume),
+				slog.String("cipher_suite", tls.CipherSuiteName(connState.CipherSuite)),
+				slog.String("negotiated_protocol", connState.NegotiatedProtocol),
+				slog.String("server_name", connState.ServerName),
+			)
+			slog.Info("TLS handshake",
+				"error", err,
+				"connection_state", connStateLogValue,
+			)
 
 		default:
 			slog.Info("Unrecognized command received", "command", verb, "args", args)
