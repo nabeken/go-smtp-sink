@@ -57,6 +57,7 @@ func realmain() error {
 	var certPath string
 	var keyPath string
 	var useTLS12 bool
+	var useKeyLog bool
 
 	rootCmd := &cobra.Command{
 		Use:   "go-smts-sink",
@@ -71,7 +72,7 @@ func realmain() error {
 
 			slog.Info(fmt.Sprintf("Listening to %s...", addr))
 
-			srv, err := NewServer(serverName, certPath, keyPath, useTLS12)
+			srv, err := NewServer(serverName, certPath, keyPath, useTLS12, useKeyLog)
 			if err != nil {
 				slog.Error("Failed to create a server", "error", err.Error())
 				return
@@ -124,16 +125,23 @@ func realmain() error {
 		false,
 		"specify to use TLS 1.2 only",
 	)
+	rootCmd.Flags().BoolVar(
+		&useKeyLog,
+		"use-key-log",
+		false,
+		"specify to use TLS Key Log",
+	)
 	return rootCmd.Execute()
 }
 
 type server struct {
 	hostname  string
 	tlsConfig *tls.Config
+	useKeyLog bool
 }
 
-func NewServer(hostname, certPath, keyPath string, useTLS12 bool) (*server, error) {
-	srv := server{hostname: hostname}
+func NewServer(hostname, certPath, keyPath string, useTLS12, useKeyLog bool) (*server, error) {
+	srv := server{hostname: hostname, useKeyLog: useKeyLog}
 
 	if certPath == "" || keyPath == "" {
 		slog.Info("Skipped loading cert and key")
@@ -158,6 +166,7 @@ func NewServer(hostname, certPath, keyPath string, useTLS12 bool) (*server, erro
 	return &server{
 		hostname:  hostname,
 		tlsConfig: &tlsConfig,
+		useKeyLog: useKeyLog,
 	}, nil
 }
 
@@ -169,21 +178,22 @@ func (s *server) serveConn(conn net.Conn) {
 
 	sess := &session{}
 
-	filename := fmt.Sprintf("%d-%s.dat", time.Now().UTC().Unix(), conn.RemoteAddr().(*net.TCPAddr).IP.String())
-	f, err := os.Create(filename)
-	if err != nil {
-		slog.Error("Failed to create a log file", "error", err.Error())
-		return
-	}
-	defer f.Close()
+	dumpPrefix := fmt.Sprintf("%d-%s", time.Now().UTC().Unix(), conn.RemoteAddr().(*net.TCPAddr).IP.String())
 
-	fmt.Fprint(f, "=== SESSION BEGIN ===\n")
+	tlsConfig := s.tlsConfig.Clone()
 
-	slog.Info("Writing Connection log", "file", f.Name())
+	if s.useKeyLog {
+		keyLogFn := fmt.Sprintf("%s-keylog.txt", dumpPrefix)
+		f, err := os.Create(keyLogFn)
+		if err != nil {
+			slog.Error("Failed to create a key log file", "error", err.Error())
+			return
+		}
+		defer f.Close()
 
-	conn = &logConn{
-		inner: conn,
-		w:     f,
+		slog.Info("Writing key log file", "file", f.Name())
+
+		tlsConfig.KeyLogWriter = f
 	}
 
 	var quit bool
@@ -326,7 +336,7 @@ func (s *server) serveConn(conn net.Conn) {
 		case "STARTTLS":
 			writeReplyAndFlush(bw, 220, "Ready to start TLS")
 
-			tlsConn := tls.Server(conn, s.tlsConfig)
+			tlsConn := tls.Server(conn, tlsConfig)
 			err := tlsConn.Handshake()
 
 			connState := tlsConn.ConnectionState()
@@ -365,7 +375,6 @@ func (s *server) serveConn(conn net.Conn) {
 	defer conn.Close()
 
 	writeReplyAndFlush(bw, 221, "Service closing transmission channel")
-	fmt.Fprint(f, "=== SESSION END ===\n")
 }
 
 func respInvalidSyntax(bw *bufio.Writer) {
