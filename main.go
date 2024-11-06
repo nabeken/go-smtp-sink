@@ -58,6 +58,7 @@ func realmain() error {
 	var keyPath string
 	var useTLS12 bool
 	var useKeyLog bool
+	var disableSessionTickets bool
 
 	rootCmd := &cobra.Command{
 		Use:   "go-smts-sink",
@@ -72,7 +73,7 @@ func realmain() error {
 
 			slog.Info(fmt.Sprintf("Listening to %s...", addr))
 
-			srv, err := NewServer(serverName, certPath, keyPath, useTLS12, useKeyLog)
+			srv, err := NewServer(serverName, certPath, keyPath, useTLS12, useKeyLog, disableSessionTickets)
 			if err != nil {
 				slog.Error("Failed to create a server", "error", err.Error())
 				return
@@ -131,6 +132,12 @@ func realmain() error {
 		false,
 		"specify to use TLS Key Log",
 	)
+	rootCmd.Flags().BoolVar(
+		&disableSessionTickets,
+		"disable-session-tickets",
+		false,
+		"specify to disable TLS Session Tickets",
+	)
 	return rootCmd.Execute()
 }
 
@@ -140,7 +147,7 @@ type server struct {
 	useKeyLog bool
 }
 
-func NewServer(hostname, certPath, keyPath string, useTLS12, useKeyLog bool) (*server, error) {
+func NewServer(hostname, certPath, keyPath string, useTLS12, useKeyLog, disableSessionTickets bool) (*server, error) {
 	srv := server{hostname: hostname, useKeyLog: useKeyLog}
 
 	if certPath == "" || keyPath == "" {
@@ -155,7 +162,8 @@ func NewServer(hostname, certPath, keyPath string, useTLS12, useKeyLog bool) (*s
 	}
 
 	tlsConfig := tls.Config{
-		Certificates: []tls.Certificate{tlsCert},
+		Certificates:           []tls.Certificate{tlsCert},
+		SessionTicketsDisabled: disableSessionTickets,
 	}
 
 	if useTLS12 {
