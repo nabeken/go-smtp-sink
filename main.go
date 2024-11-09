@@ -61,42 +61,33 @@ func realmain() error {
 	var disableSessionTickets bool
 
 	rootCmd := &cobra.Command{
-		Use:   "go-smts-sink",
+		Use:   "go-smts-sink [flags] IP_ADDR:PORT",
 		Short: "go-smtp-sink is a SMTP Sink server written in Go.",
-		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) < 1 {
-				cmd.PrintErr("please specify an address to listen to\n")
-				return
-			}
-
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
 			addr := args[0]
 
 			slog.Info(fmt.Sprintf("Listening to %s...", addr))
 
 			srv, err := NewServer(serverName, certPath, keyPath, useTLS12, useKeyLog, disableSessionTickets)
 			if err != nil {
-				slog.Error("Failed to create a server", "error", err.Error())
-				return
+				return fmt.Errorf("creating a server: %w", err)
 			}
 
 			l, err := net.Listen("tcp", addr)
 			if err != nil {
-				slog.Error("Failed to listen", "error", err.Error())
-				return
+				return fmt.Errorf("listening to: %w", err)
 			}
 
 			defer l.Close()
 
 			for {
-				func() {
-					conn, err := l.Accept()
-					if err != nil {
-						slog.Error("Failed to accept", "error", err.Error())
-						return
-					}
+				conn, err := l.Accept()
+				if err != nil {
+					return fmt.Errorf("accepting a new connection: %w", err)
+				}
 
-					srv.serveConn(conn)
-				}()
+				srv.serveConn(conn)
 			}
 		},
 	}
@@ -157,8 +148,7 @@ func NewServer(hostname, certPath, keyPath string, useTLS12, useKeyLog, disableS
 
 	tlsCert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
-		slog.Error("Failed to load the certificates", "error", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("loading the certificates: %w", err)
 	}
 
 	tlsConfig := tls.Config{
