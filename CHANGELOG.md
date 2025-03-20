@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/nabeken/go-smtp-sink/compare/v1.0.0...v1.0.1) (2025-03-20)
+
+
+### Bug Fixes
+
+* **goreleaser:** add permissions ([#16](https://github.com/nabeken/go-smtp-sink/issues/16)) ([b06b3db](https://github.com/nabeken/go-smtp-sink/commit/b06b3db76fab6b5acd47c42dcd966db3d6fe4651))
+
 ## 1.0.0 (2025-03-20)
 
 
