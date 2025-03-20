@@ -5,6 +5,10 @@ on:
     tags:
        - 'v*'
 
+permissions:
+  contents: write
+  packages: write
+
 env:
   # renovate: datasource=golang-version depName=golang
   GO_VERSION: '1.23.5'
