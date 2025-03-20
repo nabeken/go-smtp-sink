@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2](https://github.com/nabeken/go-smtp-sink/compare/v1.0.1...v1.0.2) (2025-03-20)
+
+
+### Bug Fixes
+
+* **deps:** update dependency golang to v1.24.1 ([#19](https://github.com/nabeken/go-smtp-sink/issues/19)) ([c18efaa](https://github.com/nabeken/go-smtp-sink/commit/c18efaa2f7e38402d0b5fe71f6e9fdfd98d9b85d))
+* **deps:** update github-actions ([#18](https://github.com/nabeken/go-smtp-sink/issues/18)) ([647f18c](https://github.com/nabeken/go-smtp-sink/commit/647f18c9d8601a121d88513ef02ce34480d1bd1a))
+
 ## [1.0.1](https://github.com/nabeken/go-smtp-sink/compare/v1.0.0...v1.0.1) (2025-03-20)
 
 
