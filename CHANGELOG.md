@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.3](https://github.com/nabeken/go-smtp-sink/compare/v1.0.2...v1.0.3) (2026-06-24)
+
+
+### Bug Fixes
+
+* **deps:** update actions/create-github-app-token digest to bcd2ba4 ([#73](https://github.com/nabeken/go-smtp-sink/issues/73)) ([4359186](https://github.com/nabeken/go-smtp-sink/commit/43591861a6268ed991a238d60680dbad2f695c38))
+* **deps:** update actions/setup-go digest to 924ae3a ([#77](https://github.com/nabeken/go-smtp-sink/issues/77)) ([6b275db](https://github.com/nabeken/go-smtp-sink/commit/6b275db55ba87e82ea8b8e682931b32e7b2683e5))
+* **deps:** update dependency golang to v1.26.3 ([#71](https://github.com/nabeken/go-smtp-sink/issues/71)) ([b440aaa](https://github.com/nabeken/go-smtp-sink/commit/b440aaae7847ec5a505a879bde0c2d8423cb62a0))
+* **deps:** update github-actions ([#74](https://github.com/nabeken/go-smtp-sink/issues/74)) ([fe0331a](https://github.com/nabeken/go-smtp-sink/commit/fe0331a9e0c034d399a49373e0c8fd33f3e6275c))
+* **deps:** update go to v1.26.4 ([#75](https://github.com/nabeken/go-smtp-sink/issues/75)) ([c3a752b](https://github.com/nabeken/go-smtp-sink/commit/c3a752bed34a23ab8a448aa7ac31001572b0768e))
+
 ## [1.0.2](https://github.com/nabeken/go-smtp-sink/compare/v1.0.1...v1.0.2) (2026-04-29)
 
 
